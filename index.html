@@ -3,70 +3,71 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>塔台工程虚拟实验平台</title>
+  <title>塔台破坏实验场</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header>
     <div>
-      <h1>塔台工程虚拟实验平台</h1>
-      <p>像“愤怒的小鸟”自定义搭建一样，选择真实材料并搭建塔台；通过重物、风力与地震模拟测试稳定性。</p>
+      <p class="eyebrow">Angry Birds 风格 · 结构破坏实验</p>
+      <h1>塔台破坏实验场</h1>
+      <p>拉动弹弓发射试验球，摧毁塔台并观察结构稳定性。</p>
     </div>
-    <button id="reset">清空塔台</button>
+    <div class="header-actions">
+      <button id="reset">重置关卡</button>
+      <button id="next">下一座塔</button>
+    </div>
   </header>
 
   <main>
     <section class="panel">
-      <h2>材料库</h2>
-      <div class="materials" id="materials"></div>
-      <p class="hint">点击材料卡片即可添加一层结构，支持“单击添加 / 双击删除顶层”。</p>
-    </section>
-
-    <section class="workspace">
-      <h2>搭建区</h2>
-      <div class="tower" id="tower"></div>
-      <div class="stats">
-        <div>
-          <span class="label">当前高度</span>
-          <strong id="height">0 m</strong>
-        </div>
-        <div>
-          <span class="label">总造价</span>
-          <strong id="cost">0 元</strong>
-        </div>
-        <div>
-          <span class="label">稳定性评分</span>
-          <strong id="stability">--</strong>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>测试条件</h2>
+      <h2>操作说明</h2>
+      <ol class="steps">
+        <li>在弹弓处按住试验球并拖拽调整方向与力度。</li>
+        <li>松手发射，击倒塔台模块。</li>
+        <li>通过风力、重力滑块观察实验条件变化。</li>
+      </ol>
       <div class="controls">
         <label>
-          重物质量 (kg)
-          <input type="range" id="load" min="0" max="500" value="120" />
-          <span id="loadValue">120</span>
+          风力 (向右)
+          <input type="range" id="wind" min="-6" max="6" value="0" />
+          <span id="windValue">0</span>
         </label>
         <label>
-          风力等级 (0-10)
-          <input type="range" id="wind" min="0" max="10" value="3" />
-          <span id="windValue">3</span>
-        </label>
-        <label>
-          地震等级 (0-10)
-          <input type="range" id="quake" min="0" max="10" value="2" />
-          <span id="quakeValue">2</span>
+          重力 (倍数)
+          <input type="range" id="gravity" min="6" max="14" value="10" />
+          <span id="gravityValue">1.0x</span>
         </label>
       </div>
-      <button id="simulate">开始模拟测试</button>
-      <div class="result" id="result">请搭建塔台并点击“开始模拟测试”。</div>
+      <div class="stat-grid">
+        <div>
+          <span class="label">剩余模块</span>
+          <strong id="blocksLeft">0</strong>
+        </div>
+        <div>
+          <span class="label">结构完整度</span>
+          <strong id="integrity">100%</strong>
+        </div>
+        <div>
+          <span class="label">命中次数</span>
+          <strong id="hits">0</strong>
+        </div>
+      </div>
+      <div class="hint">
+        目标：在 3 次发射内尽可能降低结构完整度。
+      </div>
+    </section>
+
+    <section class="game-area">
+      <div class="canvas-frame">
+        <canvas id="game" width="920" height="520"></canvas>
+      </div>
+      <div class="status" id="status">拖拽弹弓准备发射。</div>
     </section>
   </main>
 
   <footer>
-    <p>教学提示：引导学生比较材料优劣、结构高度与稳定性的关系，并尝试优化成本。</p>
+    <p>教学提示：比较不同环境条件下塔台的抗风、抗震能力，并记录破坏路径。</p>
   </footer>
 
   <script src="app.js"></script>
