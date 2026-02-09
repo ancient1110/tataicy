@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>塔台工程虚拟实验平台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>塔台工程虚拟实验平台</h1>
+      <p>像“愤怒的小鸟”自定义搭建一样，选择真实材料并搭建塔台；通过重物、风力与地震模拟测试稳定性。</p>
+    </div>
+    <button id="reset">清空塔台</button>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>材料库</h2>
+      <div class="materials" id="materials"></div>
+      <p class="hint">点击材料卡片即可添加一层结构，支持“单击添加 / 双击删除顶层”。</p>
+    </section>
+
+    <section class="workspace">
+      <h2>搭建区</h2>
+      <div class="tower" id="tower"></div>
+      <div class="stats">
+        <div>
+          <span class="label">当前高度</span>
+          <strong id="height">0 m</strong>
+        </div>
+        <div>
+          <span class="label">总造价</span>
+          <strong id="cost">0 元</strong>
+        </div>
+        <div>
+          <span class="label">稳定性评分</span>
+          <strong id="stability">--</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>测试条件</h2>
+      <div class="controls">
+        <label>
+          重物质量 (kg)
+          <input type="range" id="load" min="0" max="500" value="120" />
+          <span id="loadValue">120</span>
+        </label>
+        <label>
+          风力等级 (0-10)
+          <input type="range" id="wind" min="0" max="10" value="3" />
+          <span id="windValue">3</span>
+        </label>
+        <label>
+          地震等级 (0-10)
+          <input type="range" id="quake" min="0" max="10" value="2" />
+          <span id="quakeValue">2</span>
+        </label>
+      </div>
+      <button id="simulate">开始模拟测试</button>
+      <div class="result" id="result">请搭建塔台并点击“开始模拟测试”。</div>
+    </section>
+  </main>
+
+  <footer>
+    <p>教学提示：引导学生比较材料优劣、结构高度与稳定性的关系，并尝试优化成本。</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
