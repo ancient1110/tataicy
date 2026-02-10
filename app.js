@@ -36,6 +36,16 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const getSelectedBlock = () => blocks.find((block) => block.id === selectedId) || null;
 const getDraggedBlock = () => blocks.find((block) => block.id === draggedId) || null;
 
+const getPhysicsSize = (block) => {
+  // 旋转 90°/270° 时，碰撞包围盒宽高互换，避免竖放/旋转时穿模。
+  const quarterTurns = ((block.rotation % 360) + 360) % 360;
+  const swap = quarterTurns === 90 || quarterTurns === 270;
+  return {
+    width: swap ? block.height : block.width,
+    height: swap ? block.width : block.height,
+  };
+};
+
 const drawBackground = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
@@ -52,14 +62,10 @@ const drawBlock = (block, isSelected) => {
   ctx.strokeRect(-block.width / 2, -block.height / 2, block.width, block.height);
 
   if (isSelected) {
+    const { width: pWidth, height: pHeight } = getPhysicsSize(block);
     ctx.strokeStyle = "#ff9800";
     ctx.lineWidth = 3;
-    ctx.strokeRect(
-      -block.width / 2 - 4,
-      -block.height / 2 - 4,
-      block.width + 8,
-      block.height + 8
-    );
+    ctx.strokeRect(-pWidth / 2 - 4, -pHeight / 2 - 4, pWidth + 8, pHeight + 8);
   }
 
   ctx.restore();
@@ -70,7 +76,11 @@ const render = () => {
   blocks.forEach((block) => drawBlock(block, block.id === selectedId));
 };
 
-const overlapsHorizontally = (a, b) => Math.abs(a.x - b.x) < a.width / 2 + b.width / 2;
+const overlapsHorizontally = (a, b) => {
+  const aSize = getPhysicsSize(a);
+  const bSize = getPhysicsSize(b);
+  return Math.abs(a.x - b.x) < aSize.width / 2 + bSize.width / 2;
+};
 
 const applyGravity = () => {
   const groundY = canvas.height - GRID_SIZE;
@@ -81,26 +91,34 @@ const applyGravity = () => {
       return;
     }
 
-    block.vy = Math.min(block.vy + GRAVITY, MAX_FALL_SPEED);
-    block.y += block.vy;
-
-    const halfHeight = block.height / 2;
-    const halfWidth = block.width / 2;
+    const size = getPhysicsSize(block);
+    const halfHeight = size.height / 2;
+    const halfWidth = size.width / 2;
     const leftBound = halfWidth;
     const rightBound = canvas.width - halfWidth;
 
+    const previousY = block.y;
+    const previousBottom = previousY + halfHeight;
+
+    block.vy = Math.min(block.vy + GRAVITY, MAX_FALL_SPEED);
+    block.y += block.vy;
     block.x = clamp(snap(block.x), leftBound, rightBound);
 
     let landingY = groundY - halfHeight;
+    const nextBottom = block.y + halfHeight;
 
     blocks.forEach((other) => {
       if (other.id === block.id || other.id === draggedId) return;
       if (!overlapsHorizontally(block, other)) return;
 
-      const otherTop = other.y - other.height / 2;
-      const blockBottom = block.y + halfHeight;
+      const otherSize = getPhysicsSize(other);
+      const otherTop = other.y - otherSize.height / 2;
 
-      if (blockBottom > otherTop && block.y < other.y) {
+      // 同时处理“本帧穿过表面”和“已发生轻微重叠”两种情况。
+      const crossedTop = previousBottom <= otherTop && nextBottom >= otherTop;
+      const overlappingFromAbove = nextBottom > otherTop && block.y <= other.y;
+
+      if (crossedTop || overlappingFromAbove) {
         landingY = Math.min(landingY, otherTop - halfHeight);
       }
     });
@@ -187,7 +205,8 @@ canvas.addEventListener("pointermove", (event) => {
   if (!block) return;
 
   const { x, y } = getCanvasPoint(event);
-  const halfWidth = block.width / 2;
+  const { width } = getPhysicsSize(block);
+  const halfWidth = width / 2;
 
   block.x = clamp(snap(x + dragOffset.x), halfWidth, canvas.width - halfWidth);
   block.y = snap(y + dragOffset.y);
@@ -246,6 +265,7 @@ window.addEventListener("keydown", (event) => {
   }
 
   const step = event.shiftKey ? GRID_SIZE * 2 : GRID_SIZE;
+  const size = getPhysicsSize(block);
 
   switch (event.key) {
     case "ArrowUp":
@@ -257,10 +277,10 @@ window.addEventListener("keydown", (event) => {
       block.vy = 0;
       break;
     case "ArrowLeft":
-      block.x = clamp(snap(block.x - step), block.width / 2, canvas.width - block.width / 2);
+      block.x = clamp(snap(block.x - step), size.width / 2, canvas.width - size.width / 2);
       break;
     case "ArrowRight":
-      block.x = clamp(snap(block.x + step), block.width / 2, canvas.width - block.width / 2);
+      block.x = clamp(snap(block.x + step), size.width / 2, canvas.width - size.width / 2);
       break;
     default:
       return;
