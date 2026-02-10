@@ -9,6 +9,9 @@ const deleteButton = document.getElementById("delete");
 const clearButton = document.getElementById("clear");
 
 const GRID_SIZE = 10;
+const GRAVITY = 0.6;
+const MAX_FALL_SPEED = 18;
+
 const materials = {
   wood: { fill: "#c58b4a", stroke: "#8d5a24" },
   stone: { fill: "#8f98a3", stroke: "#5f6b7a" },
@@ -23,10 +26,15 @@ const sizeOptions = {
 
 const blocks = [];
 let selectedId = null;
+let draggedId = null;
+let dragOffset = { x: 0, y: 0 };
+let animationFrame = null;
 
 const snap = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const getSelectedBlock = () => blocks.find((block) => block.id === selectedId) || null;
+const getDraggedBlock = () => blocks.find((block) => block.id === draggedId) || null;
 
 const drawBackground = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -62,23 +70,74 @@ const render = () => {
   blocks.forEach((block) => drawBlock(block, block.id === selectedId));
 };
 
+const overlapsHorizontally = (a, b) => Math.abs(a.x - b.x) < a.width / 2 + b.width / 2;
+
+const applyGravity = () => {
+  const groundY = canvas.height - GRID_SIZE;
+
+  blocks.forEach((block) => {
+    if (block.id === draggedId) {
+      block.vy = 0;
+      return;
+    }
+
+    block.vy = Math.min(block.vy + GRAVITY, MAX_FALL_SPEED);
+    block.y += block.vy;
+
+    const halfHeight = block.height / 2;
+    const halfWidth = block.width / 2;
+    const leftBound = halfWidth;
+    const rightBound = canvas.width - halfWidth;
+
+    block.x = clamp(snap(block.x), leftBound, rightBound);
+
+    let landingY = groundY - halfHeight;
+
+    blocks.forEach((other) => {
+      if (other.id === block.id || other.id === draggedId) return;
+      if (!overlapsHorizontally(block, other)) return;
+
+      const otherTop = other.y - other.height / 2;
+      const blockBottom = block.y + halfHeight;
+
+      if (blockBottom > otherTop && block.y < other.y) {
+        landingY = Math.min(landingY, otherTop - halfHeight);
+      }
+    });
+
+    if (block.y > landingY) {
+      block.y = landingY;
+      block.vy = 0;
+    }
+  });
+};
+
+const tick = () => {
+  applyGravity();
+  render();
+  animationFrame = requestAnimationFrame(tick);
+};
+
 const createBlock = (x, y) => {
   const size = sizeOptions[sizeSelect.value];
   const isVertical = verticalToggle.checked;
   const width = isVertical ? size.height : size.width;
   const height = isVertical ? size.width : size.height;
+  const halfWidth = width / 2;
+
   const block = {
     id: crypto.randomUUID(),
-    x: snap(x),
+    x: clamp(snap(x), halfWidth, canvas.width - halfWidth),
     y: snap(y),
     width,
     height,
     material: materialSelect.value,
     rotation: 0,
+    vy: 0,
   };
+
   blocks.push(block);
   selectedId = block.id;
-  render();
 };
 
 const findBlockAt = (x, y) => {
@@ -89,47 +148,85 @@ const findBlockAt = (x, y) => {
     const angle = (-block.rotation * Math.PI) / 180;
     const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
     const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
+
     if (Math.abs(localX) <= block.width / 2 && Math.abs(localY) <= block.height / 2) {
       return block;
     }
   }
+
   return null;
 };
 
-canvas.addEventListener("click", (event) => {
+const getCanvasPoint = (event) => {
   const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+};
+
+canvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  const { x, y } = getCanvasPoint(event);
   const found = findBlockAt(x, y);
+
   if (found) {
     selectedId = found.id;
-    render();
-    return;
+    draggedId = found.id;
+    dragOffset = { x: found.x - x, y: found.y - y };
+    canvas.setPointerCapture(event.pointerId);
+  } else {
+    createBlock(x, y);
   }
-  createBlock(x, y);
 });
+
+canvas.addEventListener("pointermove", (event) => {
+  if (!draggedId) return;
+
+  const block = getDraggedBlock();
+  if (!block) return;
+
+  const { x, y } = getCanvasPoint(event);
+  const halfWidth = block.width / 2;
+
+  block.x = clamp(snap(x + dragOffset.x), halfWidth, canvas.width - halfWidth);
+  block.y = snap(y + dragOffset.y);
+  block.vy = 0;
+});
+
+const finishDrag = (event) => {
+  if (!draggedId) return;
+  if (event?.pointerId !== undefined && canvas.hasPointerCapture(event.pointerId)) {
+    canvas.releasePointerCapture(event.pointerId);
+  }
+  draggedId = null;
+};
+
+canvas.addEventListener("pointerup", finishDrag);
+canvas.addEventListener("pointercancel", finishDrag);
+canvas.addEventListener("pointerleave", finishDrag);
 
 rotateButton.addEventListener("click", () => {
   const block = getSelectedBlock();
   if (!block) return;
+
   block.rotation = (block.rotation + 90) % 360;
-  render();
 });
 
 deleteButton.addEventListener("click", () => {
   if (!selectedId) return;
+
   const index = blocks.findIndex((block) => block.id === selectedId);
   if (index >= 0) {
     blocks.splice(index, 1);
     selectedId = null;
-    render();
   }
 });
 
 clearButton.addEventListener("click", () => {
   blocks.length = 0;
   selectedId = null;
-  render();
+  draggedId = null;
 });
 
 window.addEventListener("keydown", (event) => {
@@ -149,24 +246,30 @@ window.addEventListener("keydown", (event) => {
   }
 
   const step = event.shiftKey ? GRID_SIZE * 2 : GRID_SIZE;
+
   switch (event.key) {
     case "ArrowUp":
       block.y = snap(block.y - step);
+      block.vy = 0;
       break;
     case "ArrowDown":
       block.y = snap(block.y + step);
+      block.vy = 0;
       break;
     case "ArrowLeft":
-      block.x = snap(block.x - step);
+      block.x = clamp(snap(block.x - step), block.width / 2, canvas.width - block.width / 2);
       break;
     case "ArrowRight":
-      block.x = snap(block.x + step);
+      block.x = clamp(snap(block.x + step), block.width / 2, canvas.width - block.width / 2);
       break;
     default:
       return;
   }
+
   event.preventDefault();
-  render();
 });
 
-render();
+if (animationFrame) {
+  cancelAnimationFrame(animationFrame);
+}
+animationFrame = requestAnimationFrame(tick);
