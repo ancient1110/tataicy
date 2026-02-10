@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>愤怒的小鸟 - 建筑物地图编辑器</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>愤怒的小鸟 - 建筑物地图编辑器</h1>
+      <p class="subtitle">仅用于搭建建筑物结构，不包含猪、鸟或其他道具。</p>
+    </div>
+    <div class="controls">
+      <label>
+        材质
+        <select id="material">
+          <option value="wood">木材</option>
+          <option value="stone">石材</option>
+          <option value="ice">冰块</option>
+        </select>
+      </label>
+      <label>
+        尺寸
+        <select id="size">
+          <option value="small">小 (40×20)</option>
+          <option value="medium">中 (80×20)</option>
+          <option value="large">大 (120×20)</option>
+        </select>
+      </label>
+      <label class="toggle">
+        <input id="vertical" type="checkbox" />
+        竖放
+      </label>
+      <button id="rotate">旋转选中</button>
+      <button id="delete">删除选中</button>
+      <button id="clear">清空画布</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="canvas-panel">
+      <canvas id="editor" width="960" height="540"></canvas>
+      <div class="hint">点击空白处放置建筑块；拖拽已有建筑块调整位置，松开后会自动下落并停在平台或其他建筑块上。</div>
+    </section>
+
+    <aside class="sidebar">
+      <h2>快捷键</h2>
+      <ul>
+        <li><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd>：旋转选中块</li>
+        <li><kbd>Delete</kbd> / <kbd>Backspace</kbd>：删除选中块</li>
+        <li><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>：微调位置</li>
+      </ul>
+      <h2>提示</h2>
+      <p>当前编辑器仅包含建筑物搭建功能，便于快速搭建关卡结构。</p>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
