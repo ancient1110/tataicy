@@ -77,6 +77,14 @@ button:hover {
   background: #d14343;
 }
 
+#arm-place {
+  background: #0f766e;
+}
+
+#arm-place.armed {
+  background: #b45309;
+}
+
 #clear,
 .secondary {
   background: #4b5563;
