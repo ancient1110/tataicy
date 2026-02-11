@@ -12,7 +12,7 @@
       <h1>愤怒的小鸟 - 建筑物地图编辑器</h1>
       <p class="subtitle">基于 Matter.js 物理引擎搭建建筑，并在重物、风力、地震条件下测试稳定性。</p>
     </div>
-    <div class="controls">
+    <div class="controls" id="build-controls">
       <label>
         材质
         <select id="material">
@@ -52,7 +52,8 @@
         <button id="test-heavy">重物冲击</button>
         <button id="test-wind">风力扰动</button>
         <button id="test-quake">地震摇晃</button>
-        <button id="test-stop" class="secondary">停止测试</button>
+        <button id="test-start">开始测试</button>
+        <button id="test-restore" class="secondary">恢复原状</button>
       </div>
 
       <label class="progress-label" for="test-progress">破坏强度（手动）</label>

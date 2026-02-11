@@ -59,6 +59,16 @@ body {
   background: #ffffff;
 }
 
+.controls.disabled {
+  opacity: 0.55;
+}
+
+.controls.disabled button,
+.controls.disabled select,
+.controls.disabled input {
+  cursor: not-allowed;
+}
+
 button {
   border: none;
   background: #2b6cb0;
