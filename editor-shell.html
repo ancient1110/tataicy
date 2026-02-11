@@ -43,7 +43,7 @@
   <main class="workspace">
     <section class="canvas-panel">
       <canvas id="editor" width="960" height="540"></canvas>
-      <div class="hint" id="hint">先点击“加载组件”，再点击空白处放置；平时仅可拖拽已有建筑块。</div>
+      <div class="hint" id="hint">先点击“加载组件”进入放置模式；再次点击可退出。放置模式下可持续点击空白处放置组件。</div>
     </section>
 
     <section class="test-panel">
@@ -55,8 +55,8 @@
         <button id="test-stop" class="secondary">停止测试</button>
       </div>
 
-      <label class="progress-label" for="test-progress">测试进度</label>
-      <progress id="test-progress" max="100" value="0"></progress>
+      <label class="progress-label" for="test-progress">破坏强度（手动）</label>
+      <input id="test-progress" type="range" min="0" max="100" value="0" step="1" />
       <p id="test-status">状态：待机</p>
     </section>
   </main>
