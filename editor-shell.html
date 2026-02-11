@@ -48,12 +48,16 @@
 
     <section class="test-panel">
       <h2>稳定性测试</h2>
-      <div class="test-buttons">
-        <button id="test-heavy">重物冲击</button>
-        <button id="test-wind">风力扰动</button>
-        <button id="test-quake">地震摇晃</button>
-        <button id="test-start">开始测试</button>
-        <button id="test-restore" class="secondary">恢复原状</button>
+      <div class="test-groups">
+        <div class="test-type-buttons">
+          <button id="test-heavy">重物冲击</button>
+          <button id="test-wind">风力扰动</button>
+          <button id="test-quake">地震摇晃</button>
+        </div>
+        <div class="test-action-buttons">
+          <button id="test-start">开始测试</button>
+          <button id="test-restore" class="secondary">恢复原状</button>
+        </div>
       </div>
 
       <label class="progress-label" for="test-progress">破坏强度（手动）</label>
@@ -63,6 +67,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-  <script src="app.js?v=20260211-4"></script>
+  <script src="app.js?v=20260211-5"></script>
 </body>
 </html>

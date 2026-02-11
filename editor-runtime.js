@@ -69,6 +69,14 @@ const getIntensityRatio = () => Number(testProgress.value) / 100;
 const getSelectedBlock = () => blocks.find((block) => block.id === selectedId) || null;
 const getDraggedBlock = () => blocks.find((block) => block.id === draggedId) || null;
 
+const updateTestButtonState = () => {
+  [heavyButton, windButton, quakeButton].forEach((button) => button.classList.remove("selected"));
+  if (!currentTestType) return;
+  if (currentTestType === "heavy") heavyButton.classList.add("selected");
+  if (currentTestType === "wind") windButton.classList.add("selected");
+  if (currentTestType === "quake") quakeButton.classList.add("selected");
+};
+
 const updateBuildControlsState = () => {
   const disabled = isTestingActive;
   [materialSelect, sizeSelect, verticalToggle, armPlaceButton, rotateButton, deleteButton, clearButton].forEach((el) => {
@@ -116,40 +124,54 @@ const computeOverlapLength = (bodyA, bodyB) => {
   return Math.max(Math.min(overlapX, 120), Math.min(overlapY, 120));
 };
 
+const createAdhesionConstraintsForPair = (bodyA, bodyB, contact, normal, overlapLength) => {
+  const tangent = Vector.perp(normal);
+  const unitTangent = Vector.normalise(tangent);
+  const offset = clamp(overlapLength * 0.2, 4, 20);
+  const stiffness = clamp(0.0012 + overlapLength * 0.00005, 0.0012, 0.0065);
+
+  const points = [
+    contact,
+    Vector.add(contact, Vector.mult(unitTangent, offset)),
+    Vector.sub(contact, Vector.mult(unitTangent, offset)),
+  ];
+
+  return points.map((point) => Constraint.create({
+    bodyA,
+    bodyB,
+    pointA: Vector.sub(point, bodyA.position),
+    pointB: Vector.sub(point, bodyB.position),
+    length: 0,
+    stiffness,
+    damping: 0.08,
+  }));
+};
+
 const createAdhesionLinks = () => {
-  adhesiveLinks.forEach((link) => World.remove(world, link.constraint));
-  adhesiveLinks = [];
+  clearAdhesionLinks();
 
   for (let i = 0; i < blocks.length; i += 1) {
     for (let j = i + 1; j < blocks.length; j += 1) {
-      const a = blocks[i].body;
-      const b = blocks[j].body;
-      const collision = Collision.collides(a, b);
+      const bodyA = blocks[i].body;
+      const bodyB = blocks[j].body;
+      const collision = Collision.collides(bodyA, bodyB);
       if (!collision || !collision.collided) continue;
 
-      const overlapLength = computeOverlapLength(a, b);
+      const overlapLength = computeOverlapLength(bodyA, bodyB);
       if (overlapLength < 6) continue;
 
       const contact = collision.supports?.[0]
         ? { x: collision.supports[0].x, y: collision.supports[0].y }
-        : {
-            x: (a.position.x + b.position.x) / 2,
-            y: (a.position.y + b.position.y) / 2,
-          };
+        : { x: (bodyA.position.x + bodyB.position.x) / 2, y: (bodyA.position.y + bodyB.position.y) / 2 };
 
-      const stiffness = clamp(0.0006 + overlapLength * 0.000045, 0.0006, 0.0045);
-      const constraint = Constraint.create({
-        bodyA: a,
-        bodyB: b,
-        pointA: Vector.sub(contact, a.position),
-        pointB: Vector.sub(contact, b.position),
-        length: 0,
-        stiffness,
-        damping: 0.03,
-      });
+      const fallbackNormal = Vector.normalise(Vector.sub(bodyB.position, bodyA.position));
+      const normal = collision.normal && (collision.normal.x !== 0 || collision.normal.y !== 0)
+        ? collision.normal
+        : (fallbackNormal.x === 0 && fallbackNormal.y === 0 ? { x: 1, y: 0 } : fallbackNormal);
 
-      World.add(world, constraint);
-      adhesiveLinks.push({ bodyA: a, bodyB: b, constraint });
+      const constraints = createAdhesionConstraintsForPair(bodyA, bodyB, contact, normal, overlapLength);
+      World.add(world, constraints);
+      adhesiveLinks.push({ bodyA, bodyB, constraints });
     }
   }
 };
@@ -159,7 +181,7 @@ const updateAdhesionLinks = () => {
     const overlapX = Math.min(link.bodyA.bounds.max.x, link.bodyB.bounds.max.x) - Math.max(link.bodyA.bounds.min.x, link.bodyB.bounds.min.x);
     const overlapY = Math.min(link.bodyA.bounds.max.y, link.bodyB.bounds.max.y) - Math.max(link.bodyA.bounds.min.y, link.bodyB.bounds.min.y);
     if (overlapX <= 0 || overlapY <= 0) {
-      World.remove(world, link.constraint);
+      link.constraints.forEach((constraint) => World.remove(world, constraint));
       return false;
     }
     return true;
@@ -167,7 +189,7 @@ const updateAdhesionLinks = () => {
 };
 
 const clearAdhesionLinks = () => {
-  adhesiveLinks.forEach((link) => World.remove(world, link.constraint));
+  adhesiveLinks.forEach((link) => link.constraints.forEach((constraint) => World.remove(world, constraint)));
   adhesiveLinks = [];
 };
 
@@ -182,6 +204,7 @@ const snapshotBeforeTest = () => {
       id: block.id,
       position: { x: block.body.position.x, y: block.body.position.y },
       angle: block.body.angle,
+      isStatic: block.body.isStatic,
       velocity: { x: block.body.velocity.x, y: block.body.velocity.y },
       angularVelocity: block.body.angularVelocity,
     })),
@@ -195,11 +218,17 @@ const restoreSnapshot = () => {
     const block = blocks.find((item) => item.id === snapBlock.id);
     if (!block) return;
 
+    Body.setStatic(block.body, !!snapBlock.isStatic);
     Body.setPosition(block.body, snapBlock.position);
     Body.setAngle(block.body, snapBlock.angle);
-    Body.setVelocity(block.body, snapBlock.velocity);
-    Body.setAngularVelocity(block.body, snapBlock.angularVelocity);
-    Body.setStatic(block.body, false);
+    block.body.positionPrev.x = snapBlock.position.x;
+    block.body.positionPrev.y = snapBlock.position.y;
+    block.body.anglePrev = snapBlock.angle;
+    Body.setVelocity(block.body, { x: 0, y: 0 });
+    Body.setAngularVelocity(block.body, 0);
+    block.body.force.x = 0;
+    block.body.force.y = 0;
+    block.body.torque = 0;
   });
 
   selectedId = preTestSnapshot.selectedId;
@@ -207,6 +236,8 @@ const restoreSnapshot = () => {
   isPlaceArmed = preTestSnapshot.isPlaceArmed;
   currentTestType = preTestSnapshot.currentTestType;
   testProgress.value = preTestSnapshot.intensity;
+  updateTestButtonState();
+  Engine.update(engine, 0);
 };
 
 const startTesting = () => {
@@ -222,6 +253,7 @@ const startTesting = () => {
 };
 
 const restoreState = () => {
+  if (!preTestSnapshot) return;
   isTestingActive = false;
   clearAdhesionLinks();
   restoreSnapshot();
@@ -445,11 +477,13 @@ clearButton.addEventListener("click", () => {
   testProgress.value = 0;
   clearAdhesionLinks();
   resetWorldGravity();
+  updateTestButtonState();
   updateTestStatus();
 });
 
 const selectTest = (type) => {
   currentTestType = type;
+  updateTestButtonState();
   updateTestStatus();
 };
 
@@ -519,6 +553,7 @@ const tick = () => {
 };
 
 updateBuildControlsState();
+updateTestButtonState();
 updatePlaceArmUI();
 updateTestStatus();
 if (animationFrame) cancelAnimationFrame(animationFrame);
