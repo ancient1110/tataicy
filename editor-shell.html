@@ -22,12 +22,28 @@
         </select>
       </label>
       <label>
-        尺寸
+        尺寸预设
         <select id="size">
           <option value="small">小 (40×20)</option>
           <option value="medium">中 (80×20)</option>
           <option value="large">大 (120×20)</option>
+          <option value="custom">自定义</option>
         </select>
+      </label>
+      <label>
+        宽度
+        <input id="width-slider" type="range" min="20" max="220" step="10" value="80" />
+        <span id="width-value">80</span>
+      </label>
+      <label>
+        高度
+        <input id="height-slider" type="range" min="20" max="220" step="10" value="20" />
+        <span id="height-value">20</span>
+      </label>
+      <label>
+        旋转角度
+        <input id="rotation-slider" type="range" min="0" max="359" step="1" value="0" />
+        <span id="rotation-value">0°</span>
       </label>
       <label class="toggle">
         <input id="vertical" type="checkbox" />
