@@ -4,21 +4,147 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>愤怒的小鸟 - 建筑物地图编辑器</title>
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft Yahei", sans-serif;
+      background: #f3f5f7;
+      color: #1f2a3a;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      background: #ffffff;
+      border-bottom: 1px solid #e3e8ef;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .app-header h1 { margin: 0 0 8px; font-size: 24px; }
+    .subtitle { margin: 0; color: #6b7280; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+    }
+
+    .controls label {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f5f7fb;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .controls select {
+      border: 1px solid #ccd5e0;
+      border-radius: 6px;
+      padding: 4px 6px;
+      background: #ffffff;
+    }
+
+    .controls.disabled { opacity: 0.55; }
+    .controls.disabled button,
+    .controls.disabled select,
+    .controls.disabled input { cursor: not-allowed; }
+
+    button {
+      border: none;
+      background: #2b6cb0;
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover { filter: brightness(1.05); }
+    #delete { background: #d14343; }
+    #arm-place { background: #0f766e; }
+    #arm-place.armed { background: #b45309; }
+    #clear, .secondary { background: #4b5563; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      padding: 24px 32px 40px;
+    }
+
+    .canvas-panel,
+    .test-panel {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    #editor {
+      display: block;
+      width: 100%;
+      max-width: 960px;
+      border: 2px dashed #d5dbe6;
+      border-radius: 12px;
+      background: linear-gradient(0deg, #f9fafb 1px, transparent 1px),
+        linear-gradient(90deg, #f9fafb 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-color: #ffffff;
+    }
+
+    .hint { margin-top: 12px; font-size: 13px; color: #6b7280; }
+    .test-panel h2 { margin: 0 0 12px; }
+    .test-groups { display: grid; gap: 10px; }
+    .test-type-buttons,
+    .test-action-buttons { display: grid; gap: 10px; }
+    .test-type-buttons { grid-template-columns: repeat(3, 1fr); }
+    .test-action-buttons { grid-template-columns: repeat(2, 1fr); }
+
+    .test-type-buttons button.selected {
+      box-shadow: inset 0 0 0 2px #ffffff, 0 0 0 2px #1d4ed8;
+    }
+
+    #test-start { background: #15803d; font-weight: 600; }
+    #test-restore { background: #334155; }
+
+    .progress-label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    #test-progress { width: 100%; accent-color: #2563eb; cursor: ew-resize; }
+    #test-status { margin-top: 10px; color: #4b5563; font-size: 14px; }
+
+    @media (max-width: 1100px) {
+      .workspace { grid-template-columns: 1fr; }
+      .test-type-buttons { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>愤怒的小鸟 - 建筑物地图编辑器</h1>
-      <p class="subtitle">搭建建筑并在重物、风力、地震条件下测试稳定性。</p>
+      <p class="subtitle">搭建阶段为非物理虚拟模式；点击“开始测试”后再启用 Matter.js 物理扰动测试。</p>
     </div>
-    <div class="controls">
+    <div class="controls" id="build-controls">
       <label>
         材质
         <select id="material">
           <option value="wood">木材</option>
           <option value="stone">石材</option>
-          <option value="ice">冰块</option>
+          <option value="glass">玻璃</option>
         </select>
       </label>
       <label>
@@ -33,6 +159,7 @@
         <input id="vertical" type="checkbox" />
         竖放
       </label>
+      <button id="arm-place">加载组件</button>
       <button id="rotate">旋转选中</button>
       <button id="delete">删除选中</button>
       <button id="clear">清空画布</button>
@@ -42,24 +169,30 @@
   <main class="workspace">
     <section class="canvas-panel">
       <canvas id="editor" width="960" height="540"></canvas>
-      <div class="hint">点击空白处放置建筑块；拖拽已有建筑块调整位置，松开后自动下落并堆叠。</div>
+      <div class="hint" id="hint">先点击“加载组件”进入放置模式；再次点击可退出。放置模式下可持续点击空白处放置组件。</div>
     </section>
 
     <section class="test-panel">
       <h2>稳定性测试</h2>
-      <div class="test-buttons">
-        <button id="test-heavy">重物冲击</button>
-        <button id="test-wind">风力扰动</button>
-        <button id="test-quake">地震摇晃</button>
-        <button id="test-stop" class="secondary">停止测试</button>
+      <div class="test-groups">
+        <div class="test-type-buttons">
+          <button id="test-heavy">重物冲击</button>
+          <button id="test-wind">风力扰动</button>
+          <button id="test-quake">地震摇晃</button>
+        </div>
+        <div class="test-action-buttons">
+          <button id="test-start">开始测试</button>
+          <button id="test-restore" class="secondary">恢复原状</button>
+        </div>
       </div>
 
-      <label class="progress-label" for="test-progress">测试进度</label>
-      <progress id="test-progress" max="100" value="0"></progress>
+      <label class="progress-label" for="test-progress">破坏强度（手动）</label>
+      <input id="test-progress" type="range" min="0" max="100" value="0" step="1" />
       <p id="test-status">状态：待机</p>
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <script src="editor.js"></script>
 </body>
 </html>
