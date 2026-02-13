@@ -10,15 +10,15 @@
   <header class="app-header">
     <div>
       <h1>愤怒的小鸟 - 建筑物地图编辑器</h1>
-      <p class="subtitle">搭建建筑并在重物、风力、地震条件下测试稳定性。</p>
+      <p class="subtitle">基于 Matter.js 物理引擎搭建建筑，并在重物、风力、地震条件下测试稳定性。</p>
     </div>
-    <div class="controls">
+    <div class="controls" id="build-controls">
       <label>
         材质
         <select id="material">
           <option value="wood">木材</option>
           <option value="stone">石材</option>
-          <option value="ice">冰块</option>
+          <option value="glass">玻璃</option>
         </select>
       </label>
       <label>
@@ -33,6 +33,7 @@
         <input id="vertical" type="checkbox" />
         竖放
       </label>
+      <button id="arm-place">加载组件</button>
       <button id="rotate">旋转选中</button>
       <button id="delete">删除选中</button>
       <button id="clear">清空画布</button>
@@ -42,24 +43,30 @@
   <main class="workspace">
     <section class="canvas-panel">
       <canvas id="editor" width="960" height="540"></canvas>
-      <div class="hint">点击空白处放置建筑块；拖拽已有建筑块调整位置，松开后自动下落并堆叠。</div>
+      <div class="hint" id="hint">先点击“加载组件”进入放置模式；再次点击可退出。放置模式下可持续点击空白处放置组件。</div>
     </section>
 
     <section class="test-panel">
       <h2>稳定性测试</h2>
-      <div class="test-buttons">
-        <button id="test-heavy">重物冲击</button>
-        <button id="test-wind">风力扰动</button>
-        <button id="test-quake">地震摇晃</button>
-        <button id="test-stop" class="secondary">停止测试</button>
+      <div class="test-groups">
+        <div class="test-type-buttons">
+          <button id="test-heavy">重物冲击</button>
+          <button id="test-wind">风力扰动</button>
+          <button id="test-quake">地震摇晃</button>
+        </div>
+        <div class="test-action-buttons">
+          <button id="test-start">开始测试</button>
+          <button id="test-restore" class="secondary">恢复原状</button>
+        </div>
       </div>
 
-      <label class="progress-label" for="test-progress">测试进度</label>
-      <progress id="test-progress" max="100" value="0"></progress>
+      <label class="progress-label" for="test-progress">破坏强度（手动）</label>
+      <input id="test-progress" type="range" min="0" max="100" value="0" step="1" />
       <p id="test-status">状态：待机</p>
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <script src="app.js?v=20260211-6"></script>
 </body>
 </html>
