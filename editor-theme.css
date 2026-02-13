@@ -59,6 +59,20 @@ body {
   background: #ffffff;
 }
 
+.controls input[type="range"] {
+  width: 120px;
+  accent-color: #2563eb;
+}
+
+.controls #width-value,
+.controls #height-value,
+.controls #rotation-value {
+  min-width: 34px;
+  text-align: right;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
 .controls.disabled {
   opacity: 0.55;
 }
