@@ -19,7 +19,7 @@ const restoreButton = document.getElementById("test-restore");
 const testProgress = document.getElementById("test-progress");
 const testStatus = document.getElementById("test-status");
 
-const { Engine, World, Bodies, Body, Query, Collision, Constraint, Vector } = Matter;
+const { Engine, World, Bodies, Body, Collision, Constraint, Vector } = Matter;
 
 const GRID_SIZE = 10;
 const BUILD_GRAVITY_STEP = 6;
@@ -31,9 +31,11 @@ const materials = {
 };
 
 const sizeOptions = {
-  small: { width: 40, height: 20 },
-  medium: { width: 80, height: 20 },
-  large: { width: 120, height: 20 },
+  small: { kind: "rect", width: 40, height: 20 },
+  medium: { kind: "rect", width: 80, height: 20 },
+  large: { kind: "rect", width: 120, height: 20 },
+  square: { kind: "rect", width: 40, height: 40 },
+  triangle: { kind: "triangle", width: 40, height: 40 },
 };
 
 const testLabels = {
@@ -65,6 +67,9 @@ const getSelectedBlock = () => blocks.find((block) => block.id === selectedId) |
 const getDraggedBlock = () => blocks.find((block) => block.id === draggedId) || null;
 
 const getFootprintSize = (block) => {
+  if (block.shape === "triangle") {
+    return { width: block.width, height: block.height };
+  }
   const quarterTurns = Math.round(block.rotation / (Math.PI / 2));
   const isVertical = Math.abs(quarterTurns) % 2 === 1;
   return {
@@ -214,13 +219,33 @@ const drawBlock = (block, isSelected) => {
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 2;
-  ctx.fillRect(-width / 2, -height / 2, width, height);
-  ctx.strokeRect(-width / 2, -height / 2, width, height);
+
+  if (block.shape === "triangle") {
+    ctx.beginPath();
+    ctx.moveTo(-width / 2, height / 2);
+    ctx.lineTo(-width / 2, -height / 2);
+    ctx.lineTo(width / 2, height / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.fillRect(-width / 2, -height / 2, width, height);
+    ctx.strokeRect(-width / 2, -height / 2, width, height);
+  }
 
   if (isSelected && !isTestingActive) {
     ctx.strokeStyle = "#ff9800";
     ctx.lineWidth = 3;
-    ctx.strokeRect(-width / 2 - 4, -height / 2 - 4, width + 8, height + 8);
+    if (block.shape === "triangle") {
+      ctx.beginPath();
+      ctx.moveTo(-width / 2 - 4, height / 2 + 4);
+      ctx.lineTo(-width / 2 - 4, -height / 2 - 4);
+      ctx.lineTo(width / 2 + 4, height / 2 + 4);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(-width / 2 - 4, -height / 2 - 4, width + 8, height + 8);
+    }
   }
 
   ctx.restore();
@@ -234,8 +259,9 @@ const render = () => {
 const createBlock = (x, y) => {
   const size = sizeOptions[sizeSelect.value];
   const isVertical = verticalToggle.checked;
-  const width = isVertical ? size.height : size.width;
-  const height = isVertical ? size.width : size.height;
+  const shouldSwap = size.kind === "rect" && size.width !== size.height && isVertical;
+  const width = shouldSwap ? size.height : size.width;
+  const height = shouldSwap ? size.width : size.height;
   const halfWidth = width / 2;
 
   const block = {
@@ -244,6 +270,7 @@ const createBlock = (x, y) => {
     y: snap(y),
     width,
     height,
+    shape: size.kind,
     rotation: 0,
     material: materialSelect.value,
   };
@@ -251,6 +278,15 @@ const createBlock = (x, y) => {
   blocks.push(block);
   selectedId = block.id;
   settleBuildWorld();
+};
+
+const isPointInTriangle = (x, y, ax, ay, bx, by, cx, cy) => {
+  const denominator = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+  if (denominator === 0) return false;
+  const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / denominator;
+  const v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / denominator;
+  const w = 1 - u - v;
+  return u >= 0 && v >= 0 && w >= 0;
 };
 
 const findBlockAt = (x, y) => {
@@ -261,6 +297,16 @@ const findBlockAt = (x, y) => {
     const angle = -block.rotation;
     const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
     const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
+
+    if (block.shape === "triangle") {
+      const halfW = block.width / 2;
+      const halfH = block.height / 2;
+      if (isPointInTriangle(localX, localY, -halfW, halfH, -halfW, -halfH, halfW, halfH)) {
+        return block;
+      }
+      continue;
+    }
+
     if (Math.abs(localX) <= block.width / 2 && Math.abs(localY) <= block.height / 2) {
       return block;
     }
@@ -315,6 +361,32 @@ const clearTestWorld = () => {
   testEngine = null;
 };
 
+const createPhysicsBody = (block) => {
+  if (block.shape === "triangle") {
+    const vertices = [
+      { x: block.x - block.width / 2, y: block.y + block.height / 2 },
+      { x: block.x - block.width / 2, y: block.y - block.height / 2 },
+      { x: block.x + block.width / 2, y: block.y + block.height / 2 },
+    ];
+    const body = Bodies.fromVertices(block.x, block.y, [vertices], {
+      density: materials[block.material].density,
+      friction: materials[block.material].friction,
+      restitution: materials[block.material].restitution,
+      frictionAir: 0.02,
+    }, true);
+    Body.setAngle(body, block.rotation);
+    return body;
+  }
+
+  return Bodies.rectangle(block.x, block.y, block.width, block.height, {
+    angle: block.rotation,
+    density: materials[block.material].density,
+    friction: materials[block.material].friction,
+    restitution: materials[block.material].restitution,
+    frictionAir: 0.02,
+  });
+};
+
 const createTestWorld = () => {
   testEngine = Engine.create({ gravity: { x: 0, y: 1 } });
 
@@ -325,16 +397,7 @@ const createTestWorld = () => {
     Bodies.rectangle(canvas.width + boundary / 2, canvas.height / 2, boundary, canvas.height * 2, { isStatic: true }),
   ]);
 
-  testBodies = blocks.map((block) => {
-    const body = Bodies.rectangle(block.x, block.y, block.width, block.height, {
-      angle: block.rotation,
-      density: materials[block.material].density,
-      friction: materials[block.material].friction,
-      restitution: materials[block.material].restitution,
-      frictionAir: 0.02,
-    });
-    return { id: block.id, body };
-  });
+  testBodies = blocks.map((block) => ({ id: block.id, body: createPhysicsBody(block) }));
 
   testBodyMap = new Map(testBodies.map((item) => [item.id, item.body]));
   World.add(testEngine.world, testBodies.map((item) => item.body));
