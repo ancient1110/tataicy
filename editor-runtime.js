@@ -66,6 +66,18 @@ const getIntensityRatio = () => Number(testProgress.value) / 100;
 const getSelectedBlock = () => blocks.find((block) => block.id === selectedId) || null;
 const getDraggedBlock = () => blocks.find((block) => block.id === draggedId) || null;
 
+const getTriangleCentroidOffset = (width, height, angle = 0) => {
+  const localX = -width / 6;
+  const localY = height / 6;
+  if (angle === 0) return { x: localX, y: localY };
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: localX * cos - localY * sin,
+    y: localX * sin + localY * cos,
+  };
+};
+
 const getFootprintSize = (block) => {
   if (block.shape === "triangle") {
     return { width: block.width, height: block.height };
@@ -204,6 +216,16 @@ const getRenderState = (block) => {
   }
   const body = testBodyMap.get(block.id);
   if (!body) return { x: block.x, y: block.y, angle: block.rotation };
+
+  if (block.shape === "triangle") {
+    const centroidOffset = getTriangleCentroidOffset(block.width, block.height, body.angle);
+    return {
+      x: body.position.x - centroidOffset.x,
+      y: body.position.y - centroidOffset.y,
+      angle: body.angle,
+    };
+  }
+
   return { x: body.position.x, y: body.position.y, angle: body.angle };
 };
 
@@ -364,11 +386,12 @@ const clearTestWorld = () => {
 const createPhysicsBody = (block) => {
   if (block.shape === "triangle") {
     const vertices = [
-      { x: block.x - block.width / 2, y: block.y + block.height / 2 },
-      { x: block.x - block.width / 2, y: block.y - block.height / 2 },
-      { x: block.x + block.width / 2, y: block.y + block.height / 2 },
+      { x: -block.width / 2, y: block.height / 2 },
+      { x: -block.width / 2, y: -block.height / 2 },
+      { x: block.width / 2, y: block.height / 2 },
     ];
-    const body = Bodies.fromVertices(block.x, block.y, [vertices], {
+    const centroidOffset = getTriangleCentroidOffset(block.width, block.height, block.rotation);
+    const body = Bodies.fromVertices(block.x + centroidOffset.x, block.y + centroidOffset.y, [vertices], {
       density: materials[block.material].density,
       friction: materials[block.material].friction,
       restitution: materials[block.material].restitution,
